@@ -1,0 +1,57 @@
+@startuml
+' 设置更专业的样式
+skinparam classAttributeIconSize 0
+skinparam style strictuml
+skinparam defaultFontName "Segoe UI, Arial, sans-serif" ' 使用更通用的字体
+
+' ---------------- 类定义 ----------------
+
+' 定义 Tag 类
+class Tag {
+  -id: Long
+  -name: String
+  --
+  ' 构造方法
+  +Tag(name: String)
+  '核心方法
+  +getName(): String
+  +setName(name: String): void
+}
+
+' 定义 Note 基类
+class Note {
+  -id: Long
+  -title: String
+  -content: String
+  -createdAt: LocalDateTime
+  -updatedAt: LocalDateTime
+  -tags: Set<Tag>
+  --
+  ' 构造方法
+  +Note(title: String, content: String)
+  ' 核心关系管理方法
+  +addTag(tag: Tag): void
+  +removeTag(tag: Tag): void
+  ' 核心属性访问方法
+  +getTitle(): String
+  +getTags(): Set<Tag>
+}
+
+' 定义 TextNote 子类，继承自 Note
+class TextNote extends Note {
+  ' 子类特有属性
+  -summary: String
+  --
+  ' 构造方法
+  +TextNote(title: String, content: String)
+  ' 子类特有方法
+  +getSummary(): String
+  +setSummary(summary: String): void
+}
+
+' ---------------- 关系定义 ----------------
+
+' 定义 Note 和 Tag 之间的多对多关联关系
+Note "*" -- "*" Tag : "manages"
+
+@enduml
