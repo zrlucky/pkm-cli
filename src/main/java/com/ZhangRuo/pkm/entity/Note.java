@@ -1,35 +1,27 @@
 package com.ZhangRuo.pkm.entity;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 代表一个笔记的核心实体基类。
- * 包含了笔记的基本属性（ID, 标题, 内容, 时间戳）以及标签管理功能。
  */
 public class Note {
 
-    private Long id;
+    private String id;
     private String title;
     private String content;
+
+    /**
+     * 内部标签集合，根据指导书要求，使用 List<String> 存储标签名。
+     */
+    private List<String> tags = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    /**
-     * 与 Tag 类的多对多关联关系。
-     * 使用 HashSet 保证标签的唯一性。
-     */
-    private Set<Tag> tags = new HashSet<>();
-
-    /**
-     * Note 类的构造方法。
-     * 创建一个笔记时，必须提供标题和内容。
-     *
-     * @param title   笔记的标题。
-     * @param content 笔记的内容。
-     */
     public Note(String title, String content) {
         this.title = title;
         this.content = content;
@@ -37,110 +29,104 @@ public class Note {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // --- 核心业务方法 ---
 
     /**
-     * 为当前笔记添加一个标签。
-     * 此方法是健壮的：如果传入的标签为 null，则不会执行任何操作。
+     * 为笔记添加一个标签 (通过标签名)。
+     * 添加前会检查标签是否为 null、空白或已存在。
      *
-     * @param tag 要添加的标签对象，建议不为 null。
+     * @param tagName 要添加的标签名。
      */
-    public void addTag(Tag tag) {
-        if (tag != null) {
-            this.tags.add(tag);
+    public void addTag(String tagName) {
+        if (tagName != null && !tagName.isBlank() && !this.tags.contains(tagName)) {
+            this.tags.add(tagName);
         }
     }
 
     /**
-     * 从当前笔记中移除一个标签。
+     * 从笔记中移除一个标签 (通过标签名)。
      *
-     * @param tag 要移除的标签对象。
+     * @param tagName 要移除的标签名。
      */
-    public void removeTag(Tag tag) {
-        this.tags.remove(tag);
-    }
-
-    // --- Getters and Setters ---
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
+    public void removeTag(String tagName) {
+        this.tags.remove(tagName);
     }
 
     /**
-     * 设置笔记的标题，并自动更新 'updatedAt' 时间戳。
-     * @param title 新的标题。
+     * 检查笔记是否包含指定的标签 (通过标签名)。
+     *
+     * @param tagName 要检查的标签名。
+     * @return 如果包含则返回 true，否则返回 false。
      */
-    public void setTitle(String title) {
-        this.title = title;
-        this.updatedAt = LocalDateTime.now(); // 关键逻辑：修改属性时更新时间
-    }
-
-    public String getContent() {
-        return content;
+    public boolean hasTag(String tagName) {
+        return this.tags.contains(tagName);
     }
 
     /**
-     * 设置笔记的内容，并自动更新 'updatedAt' 时间戳。
-     * @param content 新的内容。
+     * 获取该笔记的所有标签名列表。
+     *
+     * @return 一个包含所有标签名的列表。
      */
-    public void setContent(String content) {
-        this.content = content;
-        this.updatedAt = LocalDateTime.now(); // 关键逻辑：修改属性时更新时间
+    public List<String> getTags() {
+        return this.tags;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    // --- 兼容之前设计的、更健壮的方法 (参数为 Tag 对象) ---
+
+    /**
+     * [兼容方法] 为笔记添加一个标签 (通过 Tag 对象)。
+     * 内部会提取 Tag 对象的名称并添加到列表中。
+     *
+     * @param tagObject 要添加的 Tag 对象。
+     */
+    public void addTag(Tag tagObject) {
+        if (tagObject != null) {
+            // 调用上面已经写好的、更健壮的 addTag(String) 方法
+            this.addTag(tagObject.getName());
+        }
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    /**
+     * [兼容方法] 从笔记中移除一个标签 (通过 Tag 对象)。
+     *
+     * @param tagObject 要移除的 Tag 对象。
+     */
+    public void removeTag(Tag tagObject) {
+        if (tagObject != null) {
+            this.removeTag(tagObject.getName());
+        }
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
+    /**
+     * [兼容方法] 将标签名列表转换为 Tag 对象列表。
+     * 便于未来需要使用 Tag 对象集合的场景。
+     *
+     * @return 一个包含所有标签的 Tag 对象列表。
+     */
+    public List<Tag> getTagObjects() {
+        return this.tags.stream()
+                .map(Tag::new) // 对每个 tagName 字符串，调用 Tag 的构造方法 new Tag(tagName)
+                .collect(Collectors.toList());
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    // --- 其他 Getters and Setters ---
 
-    public Set<Tag> getTags() {
-        return tags;
-    }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; this.updatedAt = LocalDateTime.now(); }
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; this.updatedAt = LocalDateTime.now(); }
+    public void setTags(List<String> tags) { this.tags = tags; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public void setTags(Set<Tag> tags) {
-        this.tags = tags;
-    }
-
-    // --- 重写 equals, hashCode, toString (专业实践) ---
-
+    // ... equals, hashCode, toString ...
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Note note = (Note) o;
-        return Objects.equals(id, note.id);
-    }
-
+    public boolean equals(Object o) { if (this == o) return true; if (o == null || getClass() != o.getClass()) return false; Note note = (Note) o; return Objects.equals(id, note.id); }
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
-
+    public int hashCode() { return Objects.hash(id); }
     @Override
-    public String toString() {
-        return "Note{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
-                ", tags=" + tags.size() + // 避免打印过多tag信息
-                '}';
-    }
+    public String toString() { return "Note{" + "id='" + id + '\'' + ", title='" + title + '\'' + ", tags=" + tags + '}'; }
 }
