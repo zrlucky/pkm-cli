@@ -1,5 +1,6 @@
 package com.ZhangRuo.pkm.entity;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,9 +8,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 代表一个笔记的核心实体基类。
+ * 代表一个笔记的核心实体基类。4周支持序列化
  */
-public class Note {
+public class Note implements Serializable {//实现Serializable接口
+    /**
+     * 序列化版本UID，用于版本控制
+     */
+    private static final long serialVersionUID = 1L;  //添加seriaVersionUID
 
     private String id;
     private String title;
@@ -19,6 +24,8 @@ public class Note {
      * 内部标签集合，根据指导书要求，使用 List<String> 存储标签名。
      */
     private List<String> tags = new ArrayList<>();
+
+    //LocalDateTime自身可序列化
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
