@@ -1,13 +1,19 @@
 package com.ZhangRuo.pkm.repository;
 
 import com.ZhangRuo.pkm.entity.Note;
+import com.ZhangRuo.pkm.enums.ExportFormat;
 import com.ZhangRuo.pkm.exception.FileOperationException;
 
 import java.io.*;
+import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.time.format.DateTimeFormatter;
 
 /**
  * NoteFileRepository 负责笔记数据的文件持久化。
@@ -119,4 +125,81 @@ public class NoteFileRepository {
             }
         }
     }
+
+
+    /*
+    * [对应“在exportNotes方法中添加格式分发逻辑”]
+    * 根据指定的格式，将笔记列表导出到文件
+    *
+    * @param notes 要导出的笔记列表
+    * @param filePath 导出的文件路径
+    * @param format 导出的格式（例如ExporFormat.TEXT）
+    * @throws FileOperationException 如果导出过程中发生IO错误
+    * */
+    public void exportNotes(List<Note> notes, String filePath, ExportFormat format) throws FileOperationException {
+        //使用switch语句进行格式分发，便于未来扩展
+        switch (format) {
+            case TEXT :
+                try {
+                    //调用专门处理文本格式的私有方法
+                    exportToTextFile(notes,filePath);
+                }catch (IOException e){
+                    throw new FileOperationException("导出为文本文件", filePath, e);
+                }
+                break;
+//            default:
+//                  throw new IllegalArgumentException("不支持的导出格式"+format);
+        }
+    }
+
+
+    /*
+    * [对应“实现文本格式导出方法”]
+    * 将笔记列表以预定义的纯文本格式写入文件
+    *
+    * @param notes 要导出的笔记列表
+    * @param filePath 导出的文件路径
+    * throws IOException 如果写入文件时发生错误
+    * */
+    private void exportToTextFile(List<Note> notes, String filePath) throws IOException {
+        //定义一个日期时间格式化器，让输出更美观
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        //使用try-with-resources确保BufferedWriter被自动关闭
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (int i = 0; i < notes.size(); i++) {
+                Note note = notes.get(i);
+
+                //定义并写入文本格式
+                writer.write("标题: "+note.getTitle());
+                writer.newLine();//换行
+
+                writer.write("创建时间: "+note.getCreatedAt().format(formatter));
+                writer.newLine();
+
+                writer.write("最后修改: "+note.getUpdatedAt().format(formatter));
+                writer.newLine();
+
+                //将标签列表用","连接成一个字符串
+                writer.write("标签: "+String.join(", ",note.getTags()));
+                writer.newLine();
+
+                writer.write("内容: ");
+                writer.newLine();
+
+                writer.write(note.getContent());
+                writer.newLine();
+
+                //在笔记之间添加分隔符，除非是最后一篇笔记
+                if (i < notes.size() - 1) {
+                    writer.write("---");
+                    writer.newLine();
+                    writer.newLine();
+                }
+
+            }
+        }
+    }
+
+
 }

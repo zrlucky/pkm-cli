@@ -2,12 +2,16 @@ package com.ZhangRuo.pkm.repository;
 
 
 import com.ZhangRuo.pkm.entity.Note;
+import com.ZhangRuo.pkm.enums.ExportFormat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,6 +24,8 @@ class NoteFileRepositoryTest {
     private NoteFileRepository repository;
     private File testFile;
 
+    private static final String TEST_EXPORT_FILE = "test_export.txt";  //4.4.1添加新的常量，用于导出测试
+
     @BeforeEach
     void setUp() {
         repository = new NoteFileRepository(TEST_DATA_FILE);
@@ -31,6 +37,8 @@ class NoteFileRepositoryTest {
         // 每个测试结束后，都删除生成的测试文件和备份文件，确保测试环境干净
         new File(TEST_DATA_FILE).delete();
         new File(TEST_DATA_FILE + ".backup").delete();
+
+        new File(TEST_EXPORT_FILE).delete();//4.4.2清理导出文件
     }
 
     @Test
@@ -108,4 +116,58 @@ class NoteFileRepositoryTest {
         repository.saveNotes(notes);
         assertTrue(backupFile.exists(), "在覆盖保存前，应该创建备份文件");
     }
+
+//    4.4.3正确格式导出
+    @Test
+    @DisplayName("✅ 笔记应能以正确格式导出")
+    void testExportNotes_TextFormat() throws Exception {
+        //1.准备数据
+        List<Note> notesToExport = new ArrayList<>();
+        Note note1 = new Note("Title 1", "Content 1");
+        note1.addTag("java");
+        note1.addTag("test");
+
+        //为了更精确地测试时间，我们固定一下时间
+        note1.setCreatedAt(java.time.LocalDateTime.of(2023, 10, 1, 10, 0, 0));
+        note1.setUpdatedAt(java.time.LocalDateTime.of(2023, 10, 2, 11, 30, 0));
+        notesToExport.add(note1);
+
+        Note note2 = new Note("Title 2", "Content 2");
+        note2.addTag("python");
+        notesToExport.add(note2);
+
+        //2.构建期望的输出字符串
+        //我们手动拼接一个完全符合格式要求的“标准答案”字符串
+        String expectedContent =
+                "标题: Title 1\r\n"+
+                "创建时间: 2023-10-01 10:00:00\r\n"+
+                "最后修改: 2023-10-02 11:30:00\r\n"+
+                "标签: java, test\r\n"+
+                "内容: \r\n"+
+                "Content 1\r\n"+
+                "---\r\n\r\n"+
+                "标题: Title 2\r\n"+
+                "创建时间: "+note2.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))+"\r\n"+
+                "最后修改: "+note2.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))+"\r\n"+
+                "标签: python\r\n"+
+                "内容: \r\n"+
+                "Content 2\r\n";
+
+        //3.执行导出操作
+        repository.exportNotes(notesToExport,TEST_EXPORT_FILE, ExportFormat.TEXT);
+
+        //4.验证文件是否被创建
+        File exportedFile = new File(TEST_EXPORT_FILE);
+        assertTrue(exportedFile.exists(),"导出文件应该被创建");
+
+        //5.[关键]读取文件并验证格式和完整新性
+        String actualContent = Files.readString(Path.of(TEST_EXPORT_FILE));
+
+        //验证内容,对比
+        assertEquals(expectedContent,actualContent,"导出的文件内容和格式应与预期完全一致");
+
+
+
+    }
+
 }
