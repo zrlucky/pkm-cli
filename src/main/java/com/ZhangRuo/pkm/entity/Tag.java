@@ -18,6 +18,13 @@ public class Tag {
      */
     private String name;
 
+/*
+* 为 Jackson 反序列化提供的无参数构造方法。
+* */
+    public Tag(){
+        //构造方法可以是空的
+    }
+
     /**
      * Tag 类的构造方法。
      * 创建一个标签时，必须为其提供一个名称。

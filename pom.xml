@@ -21,6 +21,29 @@
             <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Jackson Databind for JSON serialization/deserialization -->
+        <!-- 添Jackson依赖来读写JSON文件 -->
+        <!-- jackson-databind: 这是 Jackson 的核心库。
+             jackson-datatype-jsr310: 这个库至关重要！因为我们的 Note 类中使用了 LocalDateTime，默认的 Jackson 不认识它，
+                                      必须添加这个模块才能正确地序列化和反序列化 Java 8 的日期时间类型。 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version> <!-- 这是一个稳定版本，也可以用更新的 -->
+        </dependency>
+        <!-- Jackson Datatype for Java 8 Time (to handle LocalDateTime) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+
+
+
+
+
+
     </dependencies>
 
 

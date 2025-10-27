@@ -29,6 +29,16 @@ public class Note implements Serializable {//实现Serializable接口
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /*
+    * 为Jackson反序列化提供的无参数构造方法
+    * 框架（如Jackson）需要这个构造方法来创建对象的空实例，然后再填充属性
+    * Jackson 默认需要调用 Note 类的无参数构造方法（也叫默认构造方法），也就是 public Note() {}
+    * */
+    public Note() {
+        //构造方法体可以是空的
+    }
+
+
     public Note(String title, String content) {
         this.title = title;
         this.content = content;
