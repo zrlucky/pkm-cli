@@ -39,6 +39,25 @@
             <version>2.15.2</version>
         </dependency>
 
+        <!-- 使用 Mocking (模拟) 框架，比如 Mockito。Mockito 能让我们创建一个 NoteService 的**“假冒”对象 (Mock Object)。
+        这个假对象拥有 NoteService 所有的方法，但我们可以随心所欲地规定**它每个方法的行为。-->
+        <!-- Mockito for creating mock objects in tests -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.5.0</version> <!-- 这是一个稳定版本 -->
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
+
+
+
+
 
 
 
