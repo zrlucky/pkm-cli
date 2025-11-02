@@ -98,7 +98,7 @@ public class NoteService {
     * @param tagName 要搜索的标签名
     * @return 包含该标签的所有Note对象的列表
     * */
-    public List<Note> findNoteByTag(String tagName) {
+    public List<Note> findNotesByTag(String tagName) {
         if (tagName == null || tagName.isBlank()){
             return getAllNotes();//如果标签为空，则返回所有笔记
         }

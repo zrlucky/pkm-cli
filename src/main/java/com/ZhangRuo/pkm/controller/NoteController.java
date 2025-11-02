@@ -8,6 +8,7 @@ import com.ZhangRuo.pkm.enums.ExportFormat;
 import java.util.List;
 import java.io.IOException;
 import java.util.Optional;
+import java.time.format.DateTimeFormatter;
 
 /*
 * [控制器层]
@@ -46,63 +47,71 @@ public class NoteController {
         }
     }
 
-    /*
-     * [交互逻辑] 处理列出笔记的请求,支持按标签过滤
-     * @param tagName 如果不为Null，则只列出包含该标签的笔记
-     * */
-    public void listNotes(String tagName) {
-        List<Note>notes;
+
+    /**
+     * [交互逻辑] 处理列出笔记的请求，支持按标签过滤。
+     * @param tagName 如果不为null，则只列出包含该标签的笔记。
+     * @return 查询到的笔记列表，用于上层缓存。
+     */
+    public List<Note> listNotes(String tagName) { // 1. 返回值从 void 改为 List<Note>
+        List<Note> notes;
         if (tagName != null) {
-            //如果提供了标签，就获取所有笔记
-            notes=noteService.getAllNotes();
-            System.out.println("--- 标签为 '" +tagName +"' 的笔记列表---");
-        }else {
-            //如果没提供标签，就获取所有标签
+            notes = noteService.findNotesByTag(tagName);
+            System.out.println("--- 标签为 '" + tagName + "' 的笔记列表 ---");
+        } else {
             notes = noteService.getAllNotes();
             System.out.println("--- 所有笔记列表 ---");
         }
 
-        if (notes.isEmpty()){
+        if (notes.isEmpty()) {
             System.out.println("ℹ️  没有找到符合条件的笔记。");
-            return;
+            return notes; // 2. 在这里也要返回 notes 列表
         }
 
-        for (Note note : notes) {
-            // 输出格式严格按照指导书示例
-            // 示例: [1] Java笔记 (2023-10-01) [编程, 学习]
+        System.out.println("------------------------------------");
+        for (int i = 0; i < notes.size(); i++) {
+            Note note = notes.get(i);
+            int displayId = i + 1; // 用户的“短ID”
+
             String tags = String.join(", ", note.getTags());
-            // 注意：指导书中的 ID 可能是从1开始的索引，而不是UUID。
-            // 为了兼容，我们暂时还用UUID，但可以讨论如何调整。
-            // 同时，指导书示例中的日期只有年月日，我们也可以调整格式。
-            System.out.printf("[%s] %s (%s) [%s] %n",
-            note.getId(),
-            note.getTitle(),
-            note.getCreatedAt().toLocalDate().toString(),//只显示年月日
-            tags);
+            // 使用短ID进行打印
+            System.out.printf("[%d] %s (%s) [%s]%n",
+                    displayId,
+                    note.getTitle(),
+                    note.getCreatedAt().toLocalDate().toString(),
+                    tags);
         }
+        System.out.println("------------------------------------");
 
-
-        System.out.println("--------------------");
+        return notes; // 3. 在方法末尾返回最终的列表
     }
+
+
 
     /*
     * [交互逻辑] 处理根据ID查看笔记详情的请求
     * */
-    public void viewNoteById(String id){
+    public void viewNoteById(String id) {
         Optional<Note> noteOpt = noteService.findNoteById(id);
-        if (noteOpt.isPresent()){
+        if (noteOpt.isPresent()) {
             Note note = noteOpt.get();
-            //将Note对象的完整信息格式化后输出
+
+            // 2. 创建一个我们想要的格式化模板
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+
             System.out.println("--- 笔记详情 ---");
-            System.out.println("ID: " + note.getId());
-            System.out.println("标题: " + note.getTitle());
-            System.out.println("标签: " + String.join(",", note.getTags()));
-            System.out.println("创建时间: " + note.getCreatedAt());
-            System.out.println("更新时间: " + note.getUpdatedAt());
-            System.out.println("----------");
-            System.out.println("内容:\r\n " + note.getContent());
-            System.out.println("----------");
-        }else {
+            System.out.println("ID      : " + note.getId());
+            System.out.println("标题    : " + note.getTitle());
+            System.out.println("标签    : " + String.join(", ", note.getTags()));
+
+            // 3. 在打印时，使用 .format(formatter) 来应用模板
+            System.out.println("创建时间: " + note.getCreatedAt().format(formatter));
+            System.out.println("更新时间: " + note.getUpdatedAt().format(formatter));
+
+            System.out.println("----------------");
+            System.out.println("内容:\n" + note.getContent());
+            System.out.println("----------------");
+        } else {
             System.err.println("❌ 错误: 未找到ID为 '" + id + "' 的笔记。");
         }
     }
@@ -140,14 +149,14 @@ public class NoteController {
     *
     * @param keyword 搜索关键词
     * */
-    public void searchNote(String keyword) {
+    public List<Note> searchNote(String keyword) {
         List<Note>notes = noteService.searchNotesByKeyword(keyword);
 
         System.out.println("--- 关键词为 ‘"+keyword+"’ 的搜索结果 ---");
 
         if (notes.isEmpty()){
             System.out.println("ℹ️  没有找到包含该关键词的笔记。");
-            return;
+            return notes;
         }
 
         //复用list命令的输出格式
@@ -160,6 +169,8 @@ public class NoteController {
                     tags);
         }
         System.out.println("---------------------");
+
+        return notes;
 
     }
 

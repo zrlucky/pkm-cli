@@ -1,0 +1,107 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam style strictuml
+
+' 设置一个统一的包前缀，让图更简洁
+package "com.yourname.pkm" {
+
+    ' ---------------- 表现层 ----------------
+    package "cli" {
+        class CommandParser {
+            -noteController: NoteController
+            -tagController: TagController
+            +CommandParser()
+            +startInteractiveMode()
+        }
+    }
+
+    package "controller" {
+        class NoteController {
+            -noteService: NoteService
+            -exportService: ExportService
+            +createNote(title, content)
+            +listNotes(tagName)
+            ' ... 其他交互方法
+        }
+        class TagController {
+            -tagService: TagService
+            +addTagToNote(noteId, tagName)
+            ' ... 其他交互方法
+        }
+    }
+
+    ' ---------------- 业务逻辑层 ----------------
+    package "service" {
+        class NoteService {
+            -storageService: StorageService
+            +createNote(title, content)
+            +getAllNotes()
+            ' ... 其他业务方法
+        }
+        class TagService {
+            -storageService: StorageService
+            +addTagToNote(noteId, tagName)
+            ' ... 其他业务方法
+        }
+        class ExportService {
+            +exportNotes(notes, path, format)
+        }
+    }
+
+    ' ---------------- 数据持久层 ----------------
+    package "repository" {
+        interface StorageService <<I,orchid>> {
+            +save(notes: List<Note>)
+            +load(): List<Note>
+        }
+        class JsonStorageService {
+            -filePath: String
+            -objectMapper: ObjectMapper
+            +save(notes: List<Note>)
+            +load(): List<Note>
+        }
+    }
+
+    ' ---------------- 实体层 ----------------
+    package "entity" {
+        class Note {
+            -id: String
+            -title: String
+            -tags: List<String>
+            +Note()
+            +Note(title, content)
+            +addTag(tagName)
+        }
+        class Tag {
+            -id: Long
+            -name: String
+            +Tag()
+            +Tag(name)
+        }
+    }
+}
+
+' ---------------- 关系定义 ----------------
+
+' --- 依赖关系 (Dependency) ---
+CommandParser ..> NoteController : "uses"
+CommandParser ..> TagController : "uses"
+
+NoteController ..> NoteService : "uses"
+NoteController ..> ExportService : "uses"
+TagController ..> TagService : "uses"
+
+NoteService ..> StorageService : "uses"
+TagService ..> StorageService : "uses"
+
+' --- 实现关系 (Implementation) ---
+JsonStorageService .up.|> StorageService
+
+' --- 关联关系 (Association) ---
+' Service/Repository 层与实体层的关联
+NoteService -- Note : "manages"
+TagService -- Note : "manages"
+StorageService -- Note : "persists"
+
+@enduml
