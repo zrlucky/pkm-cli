@@ -1,0 +1,80 @@
+@startuml
+' 使用 allow_mixing 来支持混合元素
+allow_mixing
+
+!theme plain
+
+' 皮肤参数设置
+skinparam defaultFontName "Microsoft YaHei" ' 确保中文字体
+skinparam shadowing false
+skinparam package {
+    backgroundColor #whitesmoke
+    borderColor #darkgray
+}
+skinparam frame {
+    borderColor #A9A9A9
+    backgroundColor #whitesmoke
+}
+skinparam class {
+    backgroundColor #FEFECE
+    borderColor #A9A9A9
+}
+skinparam interface {
+    backgroundColor #D1EAF8
+    borderColor #A9A9A9
+}
+
+
+' 定义最外层的根包
+package "com.ZhangRuo.pkm" {
+
+    ' ================= 表现层 =================
+    frame "表现层 (Presentation Layer)" as Presentation #e7f5ff {
+        package "app" {
+            class App
+        }
+        package "cli" {
+            class CommandParser
+        }
+        package "controller" {
+            class NoteController
+            class TagController
+        }
+    }
+
+    ' ================= 业务逻辑层 =================
+    frame "业务逻辑层 (Business Logic Layer)" as Business #e6fcf5 {
+        package "service" {
+            class NoteService
+            class TagService
+            class ExportService
+        }
+    }
+
+    ' ================= 数据持久层 =================
+    frame "数据持久层 (Data Access Layer)" as Data #fff9db {
+        package "repository" {
+            interface StorageService
+            class JsonStorageService
+        }
+    }
+
+    ' ================= 实体/模型层 =================
+    frame "实体层 (Entity Layer)" as Entity #f0f0f0 {
+        package "entity" {
+            class Note
+            class Tag <<(Unused)>>
+        }
+        package "enums" {
+            enum ExportFormat
+        }
+    }
+}
+
+' === 定义核心依赖关系 ===
+cli ..> controller
+controller ..> service
+service ..> repository
+repository ..> entity
+
+@enduml

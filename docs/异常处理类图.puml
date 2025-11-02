@@ -1,0 +1,6 @@
+@startuml
+skinparam classAttributeIconSize 0
+Exception <|-- PKMException
+PKMException <|-- FileOperationException
+PKMException <|-- SerializationException
+@enduml

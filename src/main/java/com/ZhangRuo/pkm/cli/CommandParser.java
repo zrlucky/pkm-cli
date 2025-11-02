@@ -2,13 +2,16 @@ package com.ZhangRuo.pkm.cli;
 
 import com.ZhangRuo.pkm.controller.NoteController;
 import com.ZhangRuo.pkm.controller.TagController;
+import com.ZhangRuo.pkm.entity.Note;
 import com.ZhangRuo.pkm.repository.JsonStorageService;
 import com.ZhangRuo.pkm.repository.StorageService;
 import com.ZhangRuo.pkm.service.ExportService;
 import com.ZhangRuo.pkm.service.TagService;
 import com.ZhangRuo.pkm.service.NoteService;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 
 
@@ -27,6 +30,27 @@ public class CommandParser {
     //--- REPL相关的状态 ---
     private final Scanner scanner;
     private boolean isRunning;
+
+    private List<Note> lastListedNotes;//用于缓存上一次list或search的结果
+
+
+    /**
+     * [新增] 程序的总入口方法。
+     * 根据传入的命令行参数决定启动模式。
+     * @param args 来自 main 方法的命令行参数。
+     */
+    public void parseArgs(String[] args) {
+        if (args.length == 0) {
+            // 如果没有提供任何参数，则启动交互模式
+            startInteractiveMode();
+        } else {
+            // 如果提供了参数，则将它们拼接成一个命令字符串并直接执行
+            String commandLine = String.join(" ", args);
+            executeCommand(commandLine);
+        }
+    }
+
+
 
     /*
     * [对应"构造函数正确装配依赖"]
@@ -52,6 +76,8 @@ public class CommandParser {
         this.scanner = new Scanner(System.in);
         this.isRunning = true;
 
+        this.lastListedNotes = new ArrayList<>();
+
     }
 
     /*
@@ -59,7 +85,7 @@ public class CommandParser {
     * */
     public void startInteractiveMode(){
         System.out.println("> 欢迎使用个人知识管理系统（CLI版）");
-        System.out.println("> 输入’help‘查看可用命令");
+        System.out.println("> 输入 help 查看可用命令");
 
         while(isRunning){
             System.out.print("pkm> ");
@@ -71,72 +97,63 @@ public class CommandParser {
         }
     }
 
-    /*
-    * 【解析器】
-    * 解析单行命令字符串，并将其分发给调度器
-    * 职责：只负责解析，不负责执行
-    * */
-    private void executeCommand(String input){
-        //1.将输入字符串按照第一个空格分割成[命令]和[参数字符串]
-        String[] parts = input.split("\\s+",2);
+    /**
+     * 【解析器】
+     * 解析单行命令字符串，并将其分发给调度器。
+     * 职责：只负责解析，不负责执行。
+     */
+    private void executeCommand(String input) {
+        // 1. 将输入字符串按照第一个空格分割成 [命令] 和 [可能存在的参数字符串]
+        String[] parts = input.split("\\s+", 2);
         String command = parts[0].toLowerCase();
 
-        //2.准备好命令和参数
-        String[] args;
-        if ("new".equals(command)){
-            //"new"命令的参数处理比较特殊，直接传递parts
-            args = parts;
-        }else{
-            args = (parts.length > 1) ? parts[1].split("\\s+") : new String[0];
-        }
-
-        //3.调用专门的分发方法
-        dispatchCommand(command,args);
-
+        // 2. 直接调用分发器，把最原始的 parts 数组传过去，让分发器自己决定怎么用
+        dispatchCommand(command, parts);
     }
 
-    /*
-    * 【分发器（Dispatcher）】
-    * 根据命令字符串，调用对应的处理方法
-    * 职责：只负责”switch“决策，不负责解析
-    * @param command 解析出的小写命令（e.g. "list","view"）
-    * @param parts 原始的、包含命令和参数的字符串数组
-    * */
-
+    /**
+     * 【分发器 (Dispatcher)】
+     * 根据命令字符串，调用对应的处理方法。
+     * 职责：负责 "switch" 决策，并为不同的 handle 方法准备正确的参数。
+     * @param command 解析出的小写命令 (e.g., "list", "view")
+     * @param parts   原始的、包含命令和参数的字符串数组 (e.g., ["view", "1"])
+     */
     private void dispatchCommand(String command, String[] parts) {
-        // 提取参数部分，如果不存在则为空数组
-        String[] args = (parts.length > 1) ? parts[1].split("\\s+") : new String[0];
+        // 为那些需要 "arg1 arg2 ..." 格式的 handle 方法准备参数
+        String[] simpleArgs = (parts.length > 1) ? parts[1].split("\\s+") : new String[0];
+        // 为那些需要完整参数字符串的 handle 方法准备参数
+        String fullParams = (parts.length > 1) ? parts[1] : "";
 
         switch (command) {
             case "new":
-                // 对于 new 命令，我们可能需要包含引号的完整参数字符串
-                handleNewCommand(parts.length > 1 ? parts[1] : "");
+                handleNewCommand(fullParams);
                 break;
             case "list":
-                handleListCommand(args);
+                handleListCommand(simpleArgs);
                 break;
             case "view":
-                handleViewCommand(args);
+                handleViewCommand(simpleArgs);
                 break;
             case "edit":
-                handleEditCommand(parts.length > 1 ? parts[1]:"");
+                handleEditCommand(fullParams);
+                break;
             case "delete":
-                handleDeleteCommand(args);
+                handleDeleteCommand(simpleArgs);
                 break;
             case "tag":
-                handleTagCommand(args);
+                handleTagCommand(simpleArgs);
                 break;
             case "untag":
-                handleUntagCommand(args);
+                handleUntagCommand(simpleArgs);
                 break;
             case "search":
-                handleSearchCommand(parts.length > 1 ? parts[1]:"");
+                handleSearchCommand(fullParams);
                 break;
             case "export":
-                handleExportCommand(args);
+                handleExportCommand(simpleArgs);
                 break;
             case "export-all":
-                handleExportAllCommand(args);
+                handleExportAllCommand(simpleArgs);
                 break;
             case "exit":
                 handleExitCommand();
@@ -150,13 +167,13 @@ public class CommandParser {
         }
     }
 
-
     /**
      * 关闭资源，例如 Scanner。
      */
     public void close() {
         scanner.close();
     }
+
 
 
 
@@ -189,17 +206,43 @@ public class CommandParser {
             return;
 
         }
-        //调用Controller的方法，传入tagName（可能为null）
-        noteController.listNotes(tagName);
+        //接受返回值并存入缓存
+        this.lastListedNotes = noteController.listNotes(tagName);
 
     }
 
+
     private void handleViewCommand(String[] args) {
         if (args.length != 1) {
-            System.err.println("❌ 参数错误! 用法: view <笔记ID>");
+            System.err.println("❌ 参数错误! 用法: view <短ID>");
             return;
         }
-        noteController.viewNoteById(args[0]);
+
+        try {
+            // 1. 尝试将输入解析为短ID (数字)
+            int displayId = Integer.parseInt(args[0]);
+
+            //如果缓存是空的，就主动执行一次list来填充它
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作，正在刷新笔记列表...");
+                handleListCommand(new String[0]); // 调用 list 命令的处理器
+            }
+
+            // 2. 检查短ID是否有效
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                // 3. 从缓存中获取真实ID
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                noteController.viewNoteById(realId);
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。请从下面的列表选择。");
+                // 如果ID无效，再次打印列表，方便用户选择
+                handleListCommand(new String[0]);
+            }
+        } catch (NumberFormatException e) {
+            // 4. 如果用户输入的不是数字，我们仍然可以尝试把它当作UUID来处理 (兼容老用法)
+            System.out.println("ℹ️  尝试将输入作为完整ID进行查找...");
+            noteController.viewNoteById(args[0]);
+        }
     }
 
 
@@ -209,74 +252,195 @@ public class CommandParser {
     * @param params edit 命令后面的所有参数字符串
     * */
     private void handleEditCommand(String params) {
-        //格式为<ID><新内容>
         String[] parts = params.split("\"", 3);
-        //parts[0] 应该是ID和一个空格
-        //parts[1] 应该是新内容
-
-        if (parts.length < 2  || parts[0].trim().isEmpty()) {
-            System.err.println("❌ 参数错误! 用法: edit <笔记ID>\'<新内容>\'");
+        if (parts.length < 2 || parts[0].trim().isEmpty()) {
+            System.err.println("❌ 参数错误! 用法: edit <短ID 或 完整ID> \"<新内容>\"");
             return;
         }
-        String id = parts[0].trim();
+
+        String idArg = parts[0].trim();
         String newContent = parts[1];
 
-        noteController.editNote(id, newContent);
+        try {
+            int displayId = Integer.parseInt(idArg);
 
+            // 【智能填充】
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作ID，正在刷新笔记列表...");
+                handleListCommand(new String[0]);
+            }
+
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                noteController.editNote(realId, newContent);
+                lastListedNotes.clear(); // 清空缓存
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。");
+            }
+        } catch (NumberFormatException e) {
+            noteController.editNote(idArg, newContent);
+        }
     }
 
 
     private void handleDeleteCommand(String[] args) {
         if (args.length != 1) {
-            System.err.println("❌ 参数错误! 用法: delete <笔记ID>");
+            System.err.println("❌ 参数错误! 用法: delete <短ID 或 完整ID>");
             return;
         }
-        noteController.deleteNoteById(args[0]);
+
+        try {
+            int displayId = Integer.parseInt(args[0]);
+
+            // 【智能填充】
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作ID，正在刷新笔记列表...");
+                handleListCommand(new String[0]);
+            }
+
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                noteController.deleteNoteById(realId);
+                // 操作成功后，缓存可能已过时，清空它以便下次重新加载
+                lastListedNotes.clear();
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。");
+            }
+        } catch (NumberFormatException e) {
+            noteController.deleteNoteById(args[0]);
+        }
     }
 
     private void handleTagCommand(String[] args) {
         if (args.length != 2) {
-            System.err.println("❌ 参数错误! 用法: tag <笔记ID> <标签名>");
+            System.err.println("❌ 参数错误! 用法: tag <短ID 或 完整ID> <标签名>");
             return;
         }
-        tagController.addTagToNote(args[0], args[1]);
+        String idArg = args[0];
+        String tagName = args[1];
+
+        try {
+            int displayId = Integer.parseInt(idArg);
+
+            // 【智能填充】
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作ID，正在刷新笔记列表...");
+                handleListCommand(new String[0]);
+            }
+
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                tagController.addTagToNote(realId, tagName);
+                lastListedNotes.clear(); // 清空缓存
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。");
+            }
+        } catch (NumberFormatException e) {
+            tagController.addTagToNote(idArg, tagName);
+        }
     }
+
+
 
     private void handleUntagCommand(String[] args) {
         if (args.length != 2) {
-            System.err.println("❌ 参数错误! 用法: untag <笔记ID> <标签名>");
+            System.err.println("❌ 参数错误! 用法: untag <短ID 或 完整ID> <标签名>");
             return;
         }
-        tagController.removeTagFromNote(args[0], args[1]);
+        String idArg = args[0];
+        String tagName = args[1];
+
+        try {
+            int displayId = Integer.parseInt(idArg);
+
+            // 【智能填充】
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作ID，正在刷新笔记列表...");
+                handleListCommand(new String[0]);
+            }
+
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                tagController.removeTagFromNote(realId, tagName);
+                lastListedNotes.clear(); // 清空缓存
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。");
+            }
+        } catch (NumberFormatException e) {
+            tagController.removeTagFromNote(idArg, tagName);
+        }
     }
+
 
     /*
     * 处理search命令
     * 解析出带引号的关键词
     * @param params search 命令后面的所有参数字符串
     * */
+// --- 这是修改后的 handleSearchCommand 方法 ---
+
     private void handleSearchCommand(String params) {
-        //假设关键词用引号包围
-        String[] parts = params.split("\"", 3);
-        if (parts.length < 2) {
-            System.err.println("❌ 参数错误! 用法: search \'<关键词>\'");
+        if (params == null || params.isBlank()) {
+            System.err.println("❌ 参数错误! 用法: search <关键词> 或 search \"<带空格的关键词>\"");
             return;
         }
-        String keyword = parts[1];
+
+        String keyword;
+        // 检查参数是否以双引号开头和结尾
+        if (params.startsWith("\"") && params.endsWith("\"")) {
+            // 如果是，就提取引号内部的内容
+            // 使用 substring 去掉首尾的双引号
+            keyword = params.substring(1, params.length() - 1);
+        } else {
+            // 如果没有引号，就把整个参数作为关键词
+            // (这种方式只支持不含空格的单个关键词)
+            keyword = params;
+        }
+
+        if (keyword.isEmpty()) {
+            System.err.println("❌ 参数错误! 关键词不能为空。");
+            return;
+        }
 
         noteController.searchNote(keyword);
     }
 
 
+
     private void handleExportCommand(String[] args) {
         if (args.length != 3) {
-            System.err.println("❌ 参数错误! 用法: export <笔记ID> <格式><路径>");
+            System.err.println("❌ 参数错误! 用法: export <短ID 或 完整ID> <格式> <路径>");
             return;
         }
-        String id = args[0];
+
+        String idArg = args[0];
         String format = args[1];
         String path = args[2];
-        noteController.exportNote(id, format, path);
+
+        try {
+            // 1. 尝试将ID参数解析为短ID (数字)
+            int displayId = Integer.parseInt(idArg);
+
+            // 2. 【智能填充】如果缓存为空，主动执行 list
+            if (lastListedNotes.isEmpty()) {
+                System.out.println("ℹ️  首次操作ID，正在刷新笔记列表...");
+                handleListCommand(new String[0]); // 模拟执行 "list"
+            }
+
+            // 3. 检查短ID是否有效
+            if (displayId > 0 && displayId <= lastListedNotes.size()) {
+                // 4. 从缓存中获取真实ID
+                String realId = lastListedNotes.get(displayId - 1).getId();
+                // 5. 调用 Controller 时，传入的是真实ID
+                noteController.exportNote(realId, format, path);
+            } else {
+                System.err.println("❌ 错误: 无效的短ID '" + displayId + "'。");
+            }
+        } catch (NumberFormatException e) {
+            // 6. 如果用户输入的不是数字，我们仍然可以尝试把它当作UUID来处理 (兼容老用法)
+            System.out.println("ℹ️  尝试将输入作为完整ID进行查找...");
+            noteController.exportNote(idArg, format, path);
+        }
     }
 
 
@@ -312,7 +476,7 @@ public class CommandParser {
         System.out.println("  delete <笔记ID>          - 删除一篇笔记");
         System.out.println("  tag <笔记ID> <标签名>    - 为笔记添加标签");
         System.out.println("  untag <笔记ID> <标签名>  - 为笔记移除标签");
-        System.out.println("  search \"<关键词>\"         - 搜索标题或内容包含关键词的笔记");
+        System.out.println("  search <关键词>         - 搜索标题或内容包含关键词的笔记");
         System.out.println("  export <笔记ID> <格式> <路径> - 导出单篇笔记");
         System.out.println("  export-all <格式> <路径> - 导出所有笔记");
         System.out.println("  exit                     - 退出程序");

@@ -1,0 +1,46 @@
+@startuml
+!theme plain
+
+' 定义矩形样式，使其更美观
+skinparam rectangle {
+    roundCorner 25
+    shadowing false
+    backgroundColor #whitesmoke
+    borderColor #gray
+}
+
+' 定义箭头样式
+skinparam arrow {
+    color #darkgray
+}
+
+package "表现层 (Presentation Layer)" {
+    [App] as App
+    [CommandParser] as Parser
+    [Controller] as Controllers
+}
+
+package "业务逻辑层 (Business Logic Layer)" {
+    [Service] as Services
+}
+
+package "数据持久层 (Data Access Layer)" {
+    [StorageService] as StorageInterface <<Interface>>
+    [JsonStorageService] as JsonStorage
+}
+
+' 定义调用关系
+App -> Parser : "启动"
+Parser -> Controllers : "分发命令"
+Controllers -> Services : "调用业务逻辑"
+Services -> StorageInterface : "依赖"
+StorageInterface <|.. JsonStorage : "实现"
+
+' 添加注释说明
+note right of App : 唯一的程序入口
+note right of Parser : REPL循环, 命令解析, 依赖装配
+note right of Controllers : NoteController\nTagController
+note right of Services : NoteService\nTagService\nExportService
+note right of JsonStorage : 使用 Jackson 读写 JSON 文件
+
+@enduml

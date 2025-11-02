@@ -1,0 +1,176 @@
+@startuml
+!theme plain
+allow_mixing
+
+' --- 全局样式设置 ---
+skinparam defaultFontName "Microsoft YaHei"
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam package {
+    backgroundColor #whitesmoke
+    borderColor #darkgray
+}
+skinparam class {
+    backgroundColor #FEFECE
+    borderColor #A9A9A9
+}
+skinparam interface {
+    backgroundColor #D1EAF8
+    borderColor #A9A9A9
+}
+
+' --- 包结构定义 ---
+package "com.ZhangRuo.pkm" {
+
+    ' === 表现层 ===
+    package "cli" {
+        class CommandParser {
+            -noteController: NoteController
+            -tagController: TagController
+            -scanner: Scanner
+            -isRunning: boolean
+            -lastListedNotes: List<Note>
+            --
+            +CommandParser()
+            +parseArgs(args: String[]): void
+            +startInteractiveMode(): void
+            -executeCommand(input: String): void
+            -dispatchCommand(command: String, parts: String[]): void
+            +close(): void
+            -handleNewCommand(params: String): void
+            -handleListCommand(args: String[]): void
+            -handleViewCommand(args: String[]): void
+            -handleEditCommand(params: String): void
+            -handleDeleteCommand(args: String[]): void
+            -handleTagCommand(args: String[]): void
+            -handleUntagCommand(args: String[]): void
+            -handleSearchCommand(params: String): void
+            -handleExportCommand(args: String[]): void
+            -handleExportAllCommand(args: String[]): void
+            -handleExitCommand(): void
+            -printHelp(): void
+        }
+    }
+
+    package "controller" {
+        class NoteController {
+            -noteService: NoteService
+            -exportService: ExportService
+            --
+            +NoteController(noteService: NoteService, exportService: ExportService)
+            +createNote(title: String, content: String): void
+            +listNotes(tagName: String): List<Note>
+            +viewNoteById(id: String): void
+            +deleteNoteById(id: String): void
+            +editNote(id: String, newContent: String): void
+            +searchNote(keyword: String): List<Note>
+            +exportNote(id: String, formatStr: String, path: String): void
+            +exportAllNotes(formatStr: String, path: String): void
+        }
+        class TagController {
+            -tagService: TagService
+            --
+            +TagController(tagService: TagService)
+            +addTagToNote(noteId: String, tagName: String): void
+            +removeTagFromNote(noteId: String, tagName: String): void
+        }
+    }
+
+    ' === 业务逻辑层 ===
+    package "service" {
+        class NoteService {
+            -storageService: StorageService
+            --
+            +NoteService(storageService: StorageService)
+            +createNote(title: String, content: String): Note
+            +getAllNotes(): List<Note>
+            +findNoteById(id: String): Optional<Note>
+            +deleteNote(id: String): boolean
+            +findNotesByTag(tagName: String): List<Note>
+            +updateNoteContent(id: String, newContent: String): Optional<Note>
+            +searchNotesByKeyword(keyword: String): List<Note>
+        }
+        class TagService {
+            -storageService: StorageService
+            --
+            +TagService(storageService: StorageService)
+            +addTagToNote(noteId: String, tagName: String): Optional<Note>
+            +removeTagFromNote(noteId: String, tagName: String): Optional<Note>
+        }
+        class ExportService {
+            --
+            +exportNotes(notes: List<Note>, filePath: String, format: ExportFormat): void
+            -exportToTextFile(notes: List<Note>, filePath: String): void
+        }
+    }
+
+    ' === 数据持久层 ===
+    package "repository" {
+        interface StorageService <<I,orchid>> {
+            +save(notes: List<Note>): void
+            +load(): List<Note>
+        }
+        class JsonStorageService {
+            -filePath: String
+            -objectMapper: ObjectMapper
+            --
+            +JsonStorageService()
+            +JsonStorageService(filePath: String)
+            +save(notes: List<Note>): void
+            +load(): List<Note>
+        }
+    }
+
+    ' === 实体层 ===
+    package "entity" {
+        class Note {
+            -serialVersionUID: long
+            -id: String
+            -title: String
+            -content: String
+            -tags: List<String>
+            -createdAt: LocalDateTime
+            -updatedAt: LocalDateTime
+            --
+            +Note()
+            +Note(title: String, content: String)
+            +addTag(tagName: String): void
+            +removeTag(tagName: String): void
+            +hasTag(tagName: String): boolean
+            +getTags(): List<String>
+            +addTag(tagObject: Tag): void
+            +removeTag(tagObject: Tag): void
+            +getTagObjects(): List<Tag>
+            ' ... getters and setters ...
+        }
+'        class Tag <<(Unused)>> {
+        class Tag  {
+            -id: Long
+            -name: String
+            --
+            +Tag()
+            +Tag(name: String)
+            ' ... getters and setters ...
+        }
+    }
+}
+
+' --- 关系定义 ---
+CommandParser ..> NoteController
+CommandParser ..> TagController
+
+NoteController ..> NoteService
+NoteController ..> ExportService
+TagController ..> TagService
+
+NoteService ..> StorageService
+TagService ..> StorageService
+
+JsonStorageService .up.|> StorageService
+
+NoteService ..> Note
+TagService ..> Note
+StorageService ..> Note
+Note ..> Tag
+
+@enduml
