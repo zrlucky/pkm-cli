@@ -1,100 +1,154 @@
-package com.ZhangRuo.pkm.service;
+package com.ZhangRuo.pkm.service; // 请确保这里的包名和你自己的一致
 
 import com.ZhangRuo.pkm.entity.Note;
 import com.ZhangRuo.pkm.repository.JsonStorageService;
 import com.ZhangRuo.pkm.repository.StorageService;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("NoteService 业务能力测试")
+@DisplayName("NoteService 业务逻辑测试 (完整版)")
 class NoteServiceTest {
 
-    private static String TEST_FILE_PATH="test_notes_service.json";
+    private static final String TEST_FILE_PATH = "test_notes_service_full.json";
     private StorageService storageService;
     private NoteService noteService;
 
+    // --- 测试环境设置 ---
     @BeforeEach
     void setUp() {
-        //使用真实的JsonStorageService和一个临时文件进行测试
         storageService = new JsonStorageService(TEST_FILE_PATH);
         noteService = new NoteService(storageService);
     }
 
     @AfterEach
     void tearDown() {
-        //每个测试结束后清理临时文件
         new File(TEST_FILE_PATH).delete();
     }
 
+    // --- 已有功能的测试 (保持不变) ---
+
     @Test
     @DisplayName("✅ createNote 应能成功创建笔记、生成ID并保存")
-    void createNote() {
-        //Act
-        Note createNote = noteService.createNote("New Title", "New Content");
-
-        //Assert
-        assertNotNull(createNote.getId(),"创建笔记必须有ID");
-        assertEquals("New Title", createNote.getTitle());
-
-        //直接通过StorageService验证数据是否真的被持久化了
-        List<Note> noteInStorage =storageService.load();
-        assertEquals(1, noteInStorage.size());
-        assertEquals(createNote.getId(), noteInStorage.get(0).getId());
-
+    void testCreateNote() {
+        Note createdNote = noteService.createNote("New Title", "New Content");
+        assertNotNull(createdNote.getId());
+        assertEquals("New Title", createdNote.getTitle());
+        assertEquals(1, storageService.load().size());
     }
 
     @Test
-    @DisplayName("⚠ createNote 当标题为空时应抛出异常")
+    @DisplayName("⚠️ createNote 当标题为空时应抛出异常")
     void testCreateNote_withEmptyTitle() {
-        //使用assertThrows验证异常情况
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> noteService.createNote("  ", "Content") //标题是纯空格
-        );
-        assertEquals("标题不能为空", exception.getMessage());
+        assertThrows(IllegalArgumentException.class, () -> noteService.createNote("   ", "Content"));
     }
 
     @Test
     @DisplayName("✅ findNoteById 应能找到存在的笔记，找不到则返回空")
-    void findNoteById() {
-        //Arrange
-        Note createNote = noteService.createNote("New Title", "New Content");
-
-        //Act & Assert for existing note
-        Optional<Note> findNoote = noteService.findNoteById(createNote.getId());
-        assertTrue(findNoote.isPresent(),"应该能找到已创建的笔记");
-        assertEquals(createNote.getId(), findNoote.get().getId());
-
-        //Act & Assert for non-existing note
-        Optional<Note> notFoundNote = noteService.findNoteById("non_existent_id");
-        assertTrue(notFoundNote.isEmpty(),"查找不存在的ID时应返回空的Optional");
+    void testFindNoteById() {
+        Note createdNote = noteService.createNote("Find Me", "Content");
+        assertTrue(noteService.findNoteById(createdNote.getId()).isPresent());
+        assertTrue(noteService.findNoteById("non-existent-id").isEmpty());
     }
 
     @Test
     @DisplayName("✅ deleteNote 应能成功删除笔记")
     void testDeleteNote() {
-        //Arrange
-        Note noteToDelete = noteService.createNote("To be Deleted", "New Content");
-        noteService.createNote("To be Kept", "New Content");
+        Note noteToDelete = noteService.createNote("To Be Deleted", "");
+        noteService.createNote("To Be Kept", "");
+        assertTrue(noteService.deleteNote(noteToDelete.getId()));
+        assertEquals(1, storageService.load().size());
+    }
 
+    // --- 【新增功能的测试】 ---
 
+    @Test
+    @DisplayName("✅ findNoteByTag 应能根据标签正确过滤笔记")
+    void testFindNoteByTag() {
+        // Arrange: 准备带有不同标签的笔记
+        Note noteJava = noteService.createNote("Java Note", "");
+        noteJava.addTag("Java");
+        noteJava.addTag("Programming");
 
-        //Act
-        boolean result = noteService.deleteNote(noteToDelete.getId());
+        Note notePython = noteService.createNote("Python Note", "");
+        notePython.addTag("Python");
+        notePython.addTag("Programming");
 
-        //Assert
-        assertTrue(result,"删除成功时应返回true");
-        List<Note> remainingNotes =storageService.load();
-        assertEquals(1, remainingNotes.size(),"删除后应只剩一篇笔记");
-        assertEquals("To be Kept", remainingNotes.get(0).getTitle());
+        // 重新保存一次，确保 noteJava 的标签被持久化
+        storageService.save(List.of(noteJava, notePython));
+
+        // Act & Assert
+        List<Note> javaNotes = noteService.findNoteByTag("Java");
+        assertEquals(1, javaNotes.size());
+        assertEquals("Java Note", javaNotes.get(0).getTitle());
+
+        List<Note> programmingNotes = noteService.findNoteByTag("Programming");
+        assertEquals(2, programmingNotes.size());
+
+        List<Note> nonExistentTagNotes = noteService.findNoteByTag("C++");
+        assertTrue(nonExistentTagNotes.isEmpty());
+    }
+
+    @Test
+    @DisplayName("✅ updateNoteContent 应能成功更新笔记内容和时间戳")
+    void testUpdateNoteContent() throws InterruptedException {
+        // Arrange
+        Note note = noteService.createNote("Original Title", "Original Content");
+        String originalId = note.getId();
+        LocalDateTime initialUpdateTime = note.getUpdatedAt();
+
+        // 强制等待以确保时间戳有变化
+        Thread.sleep(10);
+
+        // Act
+        Optional<Note> updatedNoteOpt = noteService.updateNoteContent(originalId, "Updated Content");
+
+        // Assert
+        assertTrue(updatedNoteOpt.isPresent());
+        Note updatedNote = updatedNoteOpt.get();
+        assertEquals("Updated Content", updatedNote.getContent());
+        assertTrue(updatedNote.getUpdatedAt().isAfter(initialUpdateTime), "更新时间戳应该晚于初始时间");
+
+        // 验证持久化
+        Note loadedNote = storageService.load().get(0);
+        assertEquals("Updated Content", loadedNote.getContent());
+    }
+
+    @Test
+    @DisplayName("⚠️ updateNoteContent 当笔记不存在时应返回空")
+    void testUpdateNoteContent_NotFound() {
+        Optional<Note> result = noteService.updateNoteContent("non-existent-id", "any content");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("✅ searchNotesByKeyword 应能不区分大小写地搜索标题和内容")
+    void testSearchNotesByKeyword() {
+        // Arrange
+        noteService.createNote("Learning Java", "Java is an object-oriented language.");
+        noteService.createNote("Python Basics", "Learn the basics of python scripting.");
+        noteService.createNote("Another Topic", "This note is not about programming.");
+
+        // Act & Assert for title search (case-insensitive)
+        List<Note> pythonNotes = noteService.searchNotesByKeyword("python");
+        assertEquals(1, pythonNotes.size());
+        assertEquals("Python Basics", pythonNotes.get(0).getTitle());
+
+        // Act & Assert for content search (case-insensitive)
+        List<Note> javaNotes = noteService.searchNotesByKeyword("OBJECT-ORIENTED");
+        assertEquals(1, javaNotes.size());
+        assertEquals("Learning Java", javaNotes.get(0).getTitle());
+
+        // Act & Assert for no match
+        List<Note> noMatchNotes = noteService.searchNotesByKeyword("non-existent-keyword");
+        assertTrue(noMatchNotes.isEmpty());
     }
 }

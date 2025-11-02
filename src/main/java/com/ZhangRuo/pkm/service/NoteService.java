@@ -6,6 +6,7 @@ import com.ZhangRuo.pkm.repository.StorageService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /*
 * [业务逻辑层]
@@ -90,6 +91,74 @@ public class NoteService {
             storageService.save(notes);
         }
         return removed;
+    }
+
+    /*
+    * [业务逻辑]根据标签名查找所有相关的笔记
+    * @param tagName 要搜索的标签名
+    * @return 包含该标签的所有Note对象的列表
+    * */
+    public List<Note> findNoteByTag(String tagName) {
+        if (tagName == null || tagName.isBlank()){
+            return getAllNotes();//如果标签为空，则返回所有笔记
+        }
+        //使用Stream API进行过滤
+        return storageService.load().stream()
+                .filter(note -> note.hasTag(tagName))//只保留包含该标签的笔记
+                .collect(Collectors.toList());//将结果收集到列表中
+
+    }
+
+    /*
+    * [业务逻辑] 更新一篇已存在笔记的内容
+    * 会自动更新笔记的‘update’ 时间戳
+    *
+    * @param id 要修改的笔记的ID
+    * @param newContent 新的笔记内容
+    * @return 如果更新成功，返回更新后的Note对象；如果笔记未找到，返回空的Optional
+    * */
+    public Optional<Note> updateNoteContent(String id, String newContent) {
+        List<Note> notes = storageService.load();
+
+        //1.找到需要更新的笔记
+        Optional<Note> noteToUpdateOpt = notes.stream()
+                .filter(note -> note.getId() != null && note.getId().equals(id))
+                .findFirst();
+
+        //2.如果找到了，就执行更新
+        if (noteToUpdateOpt.isPresent()) {
+            Note noteToUpdate = noteToUpdateOpt.get();
+            //调用Note自身的setter方法，该方法会自动更新时间戳
+            noteToUpdate.setContent(newContent);
+            storageService.save(notes);//保存整个更新后的列表
+            return Optional.of(noteToUpdate);
+        }else {
+            return Optional.empty();//如果没找到笔记，返回空
+        }
+
+    }
+
+    /*
+    * [业务逻辑] 根据关键词搜索笔记
+    * 搜索范围包括笔记的标题和内容
+    *
+    * @param keyword 要搜索的关键词
+    *@return 包含该关键词的笔记列表
+    * */
+    public List<Note> searchNotesByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()){
+            return List.of();//如果关键词为空，返回空列表
+        }
+        String lowerKeyword = keyword.toLowerCase();//转换为小写以进行不区分大小写的搜索
+
+        return storageService.load().stream()
+                .filter(note ->
+                        //检查标题是否包含关键词
+                        (note.getTitle() != null && note.getTitle().toLowerCase().contains(lowerKeyword)) ||
+                        //或者检查内容是否包含关键词
+                        (note.getContent() != null && note.getContent().toLowerCase().contains(lowerKeyword))
+                )
+                .collect(Collectors.toList());
     }
 
 
