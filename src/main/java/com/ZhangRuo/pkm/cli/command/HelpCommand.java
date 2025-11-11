@@ -65,9 +65,19 @@ public class HelpCommand extends AbstractCommand {
      */
     @Override
     public void printUsage() {
-        System.out.println("用法: help [命令名]");
-        System.out.println("描述: " + getDescription());
-        System.out.println("示例: help         (列出所有命令)");
-        System.out.println("      help new     (查看 new 命令的详细用法)");
+        System.out.println("--- 可用命令 ---");
+        System.out.println("  new \"<标题>\" \"<内容>\"   - 创建一篇新笔记");
+        System.out.println("  list                     - 列出所有笔记");
+        System.out.println("  view <笔记ID>            - 查看笔记详情");
+        System.out.println("  edit <笔记ID>\'<新内容>\'  - 编辑一篇笔记的内容");
+        System.out.println("  delete <笔记ID>          - 删除一篇笔记");
+        System.out.println("  tag <笔记ID> <标签名>    - 为笔记添加标签");
+        System.out.println("  untag <笔记ID> <标签名>  - 为笔记移除标签");
+        System.out.println("  search <关键词>         - 搜索标题或内容包含关键词的笔记");
+        System.out.println("  export <笔记ID> <格式> <路径> - 导出单篇笔记");
+        System.out.println("  export-all <格式> <路径> - 导出所有笔记");
+        System.out.println("  exit                     - 退出程序");
+        System.out.println("  help                     - 显示此帮助信息");
+        System.out.println("----------------");
     }
 }
