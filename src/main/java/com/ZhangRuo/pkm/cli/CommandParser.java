@@ -483,6 +483,16 @@ public class CommandParser {
         System.out.println("  help                     - 显示此帮助信息");
         System.out.println("----------------");
     }
+
+    /**
+     * 公共方法，用于外部（如此处的 ExitCommand）修改本解析器的运行状态。
+     * @param running 新的运行状态。
+     */
+    public void setRunning(boolean running) {
+        this.isRunning = running;
+    }
+
+
 }
 
 
