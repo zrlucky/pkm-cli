@@ -56,6 +56,14 @@
         </dependency>
 
 
+        <!-- Reflections library for classpath scanning -->
+        <!-- 反射扫描库 -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.10.2</version>
+        </dependency>
+
 
 
 
