@@ -4,6 +4,7 @@ package com.ZhangRuo.pkm.cli.command;
 
 import com.ZhangRuo.pkm.controller.NoteController;
 
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,16 +12,25 @@ import java.util.Map;
  * [命令模式] 列出笔记的具体命令实现。
  * 负责解析 "list" 命令的参数 (如 --tag)，并调用 NoteController 来执行列表展示。
  */
+@CliCommand({"list", "ls"}) // 1. 添加注解，并支持别名 "ls"
 public class ListCommand extends AbstractCommand {
 
-    private final NoteController noteController;
+    // 2. 依赖声明：移除 final
+    private NoteController noteController;
 
     /**
-     * 构造函数。
+     * 3. 提供一个无参数的构造函数。
+     */
+    public ListCommand() {
+        super("list", "列出所有笔记，或按标签过滤");
+    }
+
+    /**
+     * 4. 新增公共 Setter 方法，用于依赖注入。
+     *
      * @param noteController 笔记控制器的一个实例。
      */
-    public ListCommand(NoteController noteController) {
-        super("list", "列出所有笔记");
+    public void setNoteController(NoteController noteController) {
         this.noteController = noteController;
     }
 
@@ -31,7 +41,15 @@ public class ListCommand extends AbstractCommand {
      */
     @Override
     public void execute(String[] args) {
-        // 1. 解析选项参数
+        // 5. 【重要】在执行操作前，检查依赖是否已被注入
+        if (noteController == null) {
+            System.err.println("❌ 内部错误: NoteController 未初始化，无法执行 'list' 命令。");
+            return;
+        }
+
+        // 6. 将 CommandParser 中 handleListCommand 的逻辑“搬家”到这里
+
+        // 解析选项参数
         Map<String, String> options = parseOptions(args);
 
         String tagName = null;
@@ -44,7 +62,7 @@ public class ListCommand extends AbstractCommand {
             return;
         }
 
-        // 2. 调用 Controller 完成工作
+        // 7. 调用 Controller 完成工作
         noteController.listNotes(tagName);
     }
 
@@ -55,6 +73,7 @@ public class ListCommand extends AbstractCommand {
     public void printUsage() {
         System.out.println("用法: list [--tag <标签名>]");
         System.out.println("描述: " + getDescription());
+        System.out.println("别名: ls");
         System.out.println("示例: list");
         System.out.println("      list --tag java");
     }
@@ -74,9 +93,6 @@ public class ListCommand extends AbstractCommand {
                 if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
                     options.put(key, args[i + 1]);
                     i++; // 跳过下一个值
-                } else {
-                    // 如果后面没有值，可以当作一个布尔标志（这里我们不需要）
-                    options.put(key, "true");
                 }
             }
         }

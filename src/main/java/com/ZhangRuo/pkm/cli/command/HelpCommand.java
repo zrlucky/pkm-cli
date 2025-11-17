@@ -1,24 +1,31 @@
 package com.ZhangRuo.pkm.cli.command;
 
 
-
 import java.util.Collection;
 
 /**
  * [命令模式] 显示帮助信息的具体命令实现。
- * 它依赖于 CommandRegistry 来获取所有已注册的命令。
+ * 它依赖于 CommandRegistry 来获取所有已注册的命令，以动态生成帮助列表。
  */
+@CliCommand({"help", "?"}) // 1. 添加注解，并支持别名 "?"
 public class HelpCommand extends AbstractCommand {
 
-    // 依赖于 CommandRegistry
-    private final CommandRegistry commandRegistry;
+    // 2. 依赖声明：移除 final
+    private CommandRegistry commandRegistry;
 
     /**
-     * 构造函数。
+     * 3. 提供一个无参数的构造函数。
+     */
+    public HelpCommand() {
+        super("help", "显示所有可用命令或特定命令的帮助信息");
+    }
+
+    /**
+     * 4. 新增公共 Setter 方法，用于在 CommandParser 中进行依赖注入。
+     *
      * @param commandRegistry 命令注册器的一个实例。
      */
-    public HelpCommand(CommandRegistry commandRegistry) {
-        super("help", "显示所有可用命令或特定命令的帮助信息");
+    public void setCommandRegistry(CommandRegistry commandRegistry) {
         this.commandRegistry = commandRegistry;
     }
 
@@ -30,16 +37,20 @@ public class HelpCommand extends AbstractCommand {
      */
     @Override
     public void execute(String[] args) {
+        // 5. 【重要】在执行操作前，检查依赖是否已被注入
+        if (commandRegistry == null) {
+            System.err.println("❌ 内部错误: CommandRegistry 未初始化，无法执行 'help' 命令。");
+            return;
+        }
+
         if (args.length == 0) {
             // --- 如果是 "help"，则列出所有命令 ---
             System.out.println("\n个人知识管理系统 - 命令行版本");
             System.out.println("========================================\n");
             System.out.println("可用命令:");
 
-            // 从注册器中获取所有命令
             Collection<Command> commands = commandRegistry.getAllCommands();
             for (Command cmd : commands) {
-                // 使用 printf 进行格式化对齐输出
                 System.out.printf("  %-20s %s%n", cmd.getName(), cmd.getDescription());
             }
             System.out.println("\n输入 'help <命令名>' 查看具体命令用法。");
@@ -51,7 +62,6 @@ public class HelpCommand extends AbstractCommand {
 
             if (cmd != null) {
                 System.out.println("\n--- 命令 '" + commandName + "' 的详细用法 ---");
-                // 调用该命令自身的 printUsage() 方法
                 cmd.printUsage();
                 System.out.println("------------------------------------");
             } else {
@@ -59,6 +69,8 @@ public class HelpCommand extends AbstractCommand {
             }
         }
     }
+
+
 
     /**
      * 重写 printUsage，提供 help 命令自身的用法。
