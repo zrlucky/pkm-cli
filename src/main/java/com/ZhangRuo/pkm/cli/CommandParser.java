@@ -18,9 +18,12 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
+
 /**
- * [重构后] 命令解析器和应用上下文。
- * 负责装配整个应用，管理主控循环(REPL)，并将命令分发给 CommandRegistry。
+ * [最终重构版] 命令解析器和应用上下文。
+ * 职责：1. 装配服务和控制器。2. 创建并配置自动扫描的 CommandRegistry。
+ *      3. 管理主控循环(REPL)。4. 将命令分发给 CommandRegistry 执行。
  */
 public class CommandParser {
 
@@ -28,60 +31,69 @@ public class CommandParser {
     private boolean isRunning;
     private final CommandRegistry commandRegistry;
 
-    // --- 【新增/提升】将核心服务提升为成员变量，便于注入 ---
-    private final NoteService noteService;
-    private final TagService tagService;
-
     /**
-     * 重构后的构造函数。
-     * 职责：1. 装配所有服务和控制器。 2. 初始化命令并注册到 CommandRegistry。
+     * 终极版构造函数。
      */
     public CommandParser() {
-        // --- 1. 装配 Service 和 Controller ---
-        StorageService storageService = new JsonStorageService();
-        this.noteService = new NoteService(storageService); // 使用 this. 赋值给成员变量
-        this.tagService = new TagService(storageService);   // 使用 this. 赋值给成员变量
+        // --- 1. 创建命令注册器（它会自动扫描并注册所有命令） ---
+        this.commandRegistry = new CommandRegistry();
 
+        // --- 2. 手动进行依赖注入 ---
+        // 这是将 Service/Controller 注入到被自动发现的 Command 实例中的过程
+        setupCommandDependencies();
+
+        // --- 3. 初始化 REPL 组件 ---
+        this.scanner = new Scanner(System.in);
+        this.isRunning = true;
+
+        System.out.println("\n✅ 命令系统初始化完成，共加载了 " + commandRegistry.getCommandCount() + " 个命令。");
+    }
+
+    /**
+     * 【核心】为所有需要依赖的命令，执行 Setter 注入。
+     */
+    private void setupCommandDependencies() {
+        // --- 1. 创建 Service 和 Controller 实例 (只创建一次) ---
+        StorageService storageService = new JsonStorageService();
+        NoteService noteService = new NoteService(storageService);
+        TagService tagService = new TagService(storageService);
         ExportService exportService = new ExportService();
         NoteController noteController = new NoteController(noteService, exportService);
         TagController tagController = new TagController(tagService);
 
-        // --- 2. 初始化命令注册器和 REPL 组件 ---
-        this.commandRegistry = new CommandRegistry();
-        this.scanner = new Scanner(System.in);
-        this.isRunning = true;
-
-        // --- 3. 调用私有方法，完成所有命令的初始化和注册 ---
-        initializeCommands(noteController, tagController);
-    }
-
-    /**
-     * 初始化并注册所有可用命令。
-     * 将所有依赖项通过参数传入，以注入到各个 Command 对象中。
-     */
-    private void initializeCommands(NoteController noteController, TagController tagController) {
-        // 注册所有具体命令，并将它们需要的依赖注入进去
-        commandRegistry.registerCommand(new NewCommand(noteController));
-        commandRegistry.registerCommand(new ListCommand(noteController));
-        commandRegistry.registerCommand(new ViewCommand(noteController));
-        commandRegistry.registerCommand(new EditCommand(noteController));
-        commandRegistry.registerCommand(new DeleteCommand(noteController));
-        commandRegistry.registerCommand(new SearchCommand(noteController));
-        commandRegistry.registerCommand(new ExportCommand(noteController));
-        commandRegistry.registerCommand(new ExportAllCommand(noteController));
-
-        commandRegistry.registerCommand(new TagCommand(tagController));
-        commandRegistry.registerCommand(new UntagCommand(tagController));
-
-        // 特殊命令，需要 CommandRegistry 或 CommandParser 自身的引用
-        commandRegistry.registerCommand(new HelpCommand(commandRegistry));
-        commandRegistry.registerCommand(new ExitCommand(this));
-
-        // --- 【新增】注册 StatisticsCommand，并注入它需要的 Service ---
-        commandRegistry.registerCommand(new StatisticsCommand(this.noteService, this.tagService));
-
-        // 注册别名
-        commandRegistry.registerAlias("quit", "exit");
+        // --- 2. 遍历所有已自动注册的命令，按需注入依赖 ---
+        for (Command command : commandRegistry.getAllCommands()) {
+            if (command instanceof NewCommand) {
+                ((NewCommand) command).setNoteController(noteController);
+            } else if (command instanceof ListCommand) {
+                ((ListCommand) command).setNoteController(noteController);
+            } else if (command instanceof ViewCommand) {
+                ((ViewCommand) command).setNoteController(noteController);
+            } else if (command instanceof EditCommand) {
+                ((EditCommand) command).setNoteController(noteController);
+            } else if (command instanceof DeleteCommand) {
+                ((DeleteCommand) command).setNoteController(noteController);
+            } else if (command instanceof SearchCommand) {
+                ((SearchCommand) command).setNoteController(noteController);
+            } else if (command instanceof ExportCommand) {
+                ((ExportCommand) command).setNoteController(noteController);
+            } else if (command instanceof ExportAllCommand) {
+                ((ExportAllCommand) command).setNoteController(noteController);
+            } else if (command instanceof TagCommand) {
+                ((TagCommand) command).setTagController(tagController);
+            } else if (command instanceof UntagCommand) {
+                ((UntagCommand) command).setTagController(tagController);
+            } else if (command instanceof StatisticsCommand) {
+                ((StatisticsCommand) command).setNoteService(noteService);
+                ((StatisticsCommand) command).setTagService(tagService);
+            } else if (command instanceof HelpCommand) {
+                // 注入 CommandRegistry 自身
+                ((HelpCommand) command).setCommandRegistry(commandRegistry);
+            } else if (command instanceof ExitCommand) {
+                // 注入 CommandParser 自身
+                ((ExitCommand) command).setCommandParser(this);
+            }
+        }
     }
 
     // ... parseArgs, startInteractiveMode, executeCommand, parseCommandLine 等方法保持不变 ...
@@ -95,7 +107,7 @@ public class CommandParser {
     }
 
     private void startInteractiveMode() {
-        System.out.println("> 欢迎使用个人知识管理系统 (CLI版)");
+        System.out.println("\n> 欢迎使用个人知识管理系统 (CLI版)");
         System.out.println("> 输入 'help' 查看可用命令\n");
         while (isRunning) {
             System.out.print("pkm> ");
@@ -108,9 +120,7 @@ public class CommandParser {
 
     private void executeCommand(String commandLine) {
         String[] parts = parseCommandLine(commandLine);
-        if (parts.length == 0) {
-            return;
-        }
+        if (parts.length == 0) return;
 
         String commandName = parts[0].toLowerCase();
         String[] args = Arrays.copyOfRange(parts, 1, parts.length);
@@ -136,8 +146,6 @@ public class CommandParser {
         while (matcher.find()) {
             if (matcher.group(1) != null) {
                 parts.add(matcher.group(1));
-            } else if (matcher.group(2) != null) {
-                parts.add(matcher.group(2));
             } else {
                 parts.add(matcher.group());
             }
@@ -145,19 +153,8 @@ public class CommandParser {
         return parts.toArray(new String[0]);
     }
 
-    // --- 辅助方法 (用于 ExitCommand 和测试) ---
-
-    public void setRunning(boolean running) {
-        this.isRunning = running;
-    }
-
-    public CommandRegistry getCommandRegistry() {
-        return commandRegistry;
-    }
-
-    public void close() {
-        if (scanner != null) {
-            scanner.close();
-        }
-    }
+    // --- 辅助方法 ---
+    public void setRunning(boolean running) { this.isRunning = running; }
+    public CommandRegistry getCommandRegistry() { return commandRegistry; }
+    public void close() { if (scanner != null) scanner.close(); }
 }
